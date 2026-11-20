@@ -1,0 +1,110 @@
+# Enterprise Data Catalog & Semantic Layer (Từ điển Dữ liệu Doanh nghiệp)
+version: "1.0"
+business_domain: "Retail & F&B Chain (Nova Mart)"
+
+tables:
+  dim_stores:
+    description: "Danh mục chi nhánh / cửa hàng trên toàn quốc"
+    primary_key: "store_id"
+    columns:
+      store_id: { type: "INTEGER", description: "Mã định danh cửa hàng" }
+      store_name: { type: "VARCHAR", description: "Tên cửa hàng (VD: Nova Mart Quận 1)" }
+      region: { type: "VARCHAR", description: "Vùng miền (Miền Bắc, Miền Trung, Miền Nam, Tây Nguyên)" }
+      city: { type: "VARCHAR", description: "Tỉnh/Thành phố" }
+      manager_name: { type: "VARCHAR", description: "Tên quản lý", pii: true }
+      manager_phone: { type: "VARCHAR", description: "Số điện thoại quản lý", pii: true }
+      manager_email: { type: "VARCHAR", description: "Email quản lý", pii: true }
+
+  dim_products:
+    description: "Danh mục sản phẩm / SKU"
+    primary_key: "product_id"
+    columns:
+      product_id: { type: "INTEGER", description: "Mã định danh sản phẩm" }
+      sku_code: { type: "VARCHAR", description: "Mã SKU (VD: SKU-BEV-001)" }
+      product_name: { type: "VARCHAR", description: "Tên sản phẩm" }
+      category: { type: "VARCHAR", description: "Ngành hàng (Thực phẩm tươi sống, Đồ uống, Hàng tiêu dùng, Bánh kẹo)" }
+      unit_cost: { type: "FLOAT", description: "Giá vốn niêm yết (VND)" }
+      unit_price: { type: "FLOAT", description: "Giá bán lẻ niêm yết (VND)" }
+
+  dim_customers:
+    description: "Danh mục khách hàng hội viên"
+    primary_key: "customer_id"
+    columns:
+      customer_id: { type: "INTEGER", description: "Mã khách hàng" }
+      customer_name: { type: "VARCHAR", description: "Họ và tên khách hàng", pii: true }
+      phone_number: { type: "VARCHAR", description: "Số điện thoại", pii: true }
+      email: { type: "VARCHAR", description: "Địa chỉ email", pii: true }
+      membership_tier: { type: "VARCHAR", description: "Hạng thành viên (Standard, Silver, Gold, Platinum)" }
+
+  fact_sales:
+    description: "Dữ liệu giao dịch bán hàng chi tiết"
+    primary_key: "transaction_id"
+    foreign_keys:
+      store_id: "dim_stores.store_id"
+      product_id: "dim_products.product_id"
+      customer_id: "dim_customers.customer_id"
+    columns:
+      transaction_id: { type: "VARCHAR", description: "Mã hóa đơn / giao dịch" }
+      order_date: { type: "DATE", description: "Ngày giao dịch (YYYY-MM-DD)" }
+      order_timestamp: { type: "DATETIME", description: "Thời điểm thanh toán" }
+      store_id: { type: "INTEGER", description: "Mã cửa hàng" }
+      product_id: { type: "INTEGER", description: "Mã sản phẩm" }
+      customer_id: { type: "INTEGER", description: "Mã khách hàng" }
+      quantity: { type: "INTEGER", description: "Số lượng bán" }
+      gross_sales: { type: "FLOAT", description: "Doanh thu gộp (Số lượng * Đơn giá)" }
+      discount_amount: { type: "FLOAT", description: "Giá trị chiết khấu / khuyến mãi" }
+      net_revenue: { type: "FLOAT", description: "Doanh thu thuần thực thu = gross_sales - discount_amount" }
+      cost_amount: { type: "FLOAT", description: "Tổng giá vốn = quantity * unit_cost" }
+      gross_profit: { type: "FLOAT", description: "Lợi nhuận gộp = net_revenue - cost_amount" }
+      is_return: { type: "INTEGER", description: "Cờ hoàn trả hàng (1: Hoàn hàng, 0: Bình thường)" }
+      out_of_stock_event: { type: "INTEGER", description: "Cờ thiếu hàng/đứt hàng trong ngày (1: Đứt hàng, 0: Đủ hàng)" }
+
+  fact_store_traffic_weather:
+    description: "Dữ liệu lưu lượng khách và thời tiết từng cửa hàng theo ngày"
+    primary_key: "id"
+    columns:
+      id: { type: "INTEGER", description: "ID tự tăng" }
+      date: { type: "DATE", description: "Ngày ghi nhận" }
+      store_id: { type: "INTEGER", description: "Mã cửa hàng" }
+      foot_traffic: { type: "INTEGER", description: "Lượt khách ghé vào cửa hàng (Foot traffic)" }
+      weather_condition: { type: "VARCHAR", description: "Thời tiết (Nắng ráo, Mưa rào, Mưa bão ngập lụt)" }
+      rainy_hours: { type: "FLOAT", description: "Số giờ mưa trong ngày (tiếng)" }
+
+# Công thức tính chỉ số KPI chuẩn (Standard KPI Semantic Metrics)
+metrics:
+  net_revenue:
+    display_name: "Doanh thu thuần (Net Revenue)"
+    formula_sql: "SUM(CASE WHEN is_return = 0 THEN net_revenue ELSE -net_revenue END)"
+    description: "Tổng doanh thu bán hàng thực tế sau khi trừ chiết khấu và trừ hàng hoàn trả"
+    unit: "VND"
+
+  gross_profit:
+    display_name: "Lợi nhuận gộp (Gross Profit)"
+    formula_sql: "SUM(CASE WHEN is_return = 0 THEN gross_profit ELSE -gross_profit END)"
+    description: "Lợi nhuận gộp thu về sau khi trừ giá vốn"
+    unit: "VND"
+
+  profit_margin:
+    display_name: "Biên lợi nhuận gộp (% Margin)"
+    formula_sql: "ROUND(SUM(gross_profit) * 100.0 / NULLIF(SUM(net_revenue), 0), 2)"
+    description: "Tỷ suất lợi nhuận gộp trên doanh thu thuần"
+    unit: "%"
+
+  order_count:
+    display_name: "Tổng số đơn hàng"
+    formula_sql: "COUNT(DISTINCT transaction_id)"
+    description: "Số lượng giao dịch thành công"
+    unit: "Đơn"
+
+  aov:
+    display_name: "Giá trị đơn hàng trung bình (AOV)"
+    formula_sql: "ROUND(SUM(net_revenue) * 1.0 / NULLIF(COUNT(DISTINCT transaction_id), 0), 0)"
+    description: "Trung bình mỗi đơn khách mua bao nhiêu tiền"
+    unit: "VND/đơn"
+
+  out_of_stock_rate:
+    display_name: "Tỷ lệ đứt hàng (Stock-out rate)"
+    formula_sql: "ROUND(SUM(out_of_stock_event) * 100.0 / COUNT(*), 2)"
+    description: "Tỷ lệ lượt giao dịch gặp tình trạng thiếu hàng"
+    unit: "%"
+

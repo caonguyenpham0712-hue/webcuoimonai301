@@ -1,0 +1,39 @@
+{
+  "roles": {
+    "CEO": {
+      "allowed_regions": ["ALL"],
+      "allowed_columns": ["*"],
+      "can_view_pii": false
+    },
+    "REGIONAL_DIRECTOR_SOUTH": {
+      "allowed_regions": ["Miền Nam"],
+      "allowed_columns": ["*"],
+      "can_view_pii": false
+    },
+    "REGIONAL_DIRECTOR_NORTH": {
+      "allowed_regions": ["Miền Bắc"],
+      "allowed_columns": ["*"],
+      "can_view_pii": false
+    },
+    "STORE_MANAGER_Q1": {
+      "allowed_stores": [1],
+      "allowed_regions": ["Miền Nam"],
+      "allowed_columns": ["*"],
+      "can_view_pii": false
+    },
+    "DATA_ADMIN": {
+      "allowed_regions": ["ALL"],
+      "allowed_columns": ["*"],
+      "can_view_pii": true
+    }
+  },
+  "pii_masking_rules": {
+    "phone_number": "MASK_PHONE",
+    "manager_phone": "MASK_PHONE",
+    "email": "MASK_EMAIL",
+    "manager_email": "MASK_EMAIL",
+    "customer_name": "MASK_NAME",
+    "manager_name": "MASK_NAME"
+  }
+}
+
